@@ -2,7 +2,8 @@ from datetime import timedelta, datetime
 import secrets
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from app.models.models import User, VerificationCode
+from app.models.user import User
+from app.models.verification_code import VerificationCode
 from app.service.security import hash_password, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
 def login_user(request, db: Session):
