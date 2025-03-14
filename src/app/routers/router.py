@@ -1,0 +1,95 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from datetime import timedelta, datetime
+import random
+import secrets
+from app.schemas.schemas import UserRegisterRequest, UserLoginRequest, ResetPasswordRequest, VerifyOTPRequest
+from app.service.security import create_access_token, hash_password, verify_password, is_valid_email, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.config.database import get_db
+from app.models.models import User, VerificationCode
+
+router = APIRouter(
+    prefix="/auth", tags=["Authentication"]
+)
+
+# Đăng ký tài khoản
+@router.post("/register/")
+def register(request: UserRegisterRequest, db: Session = Depends(get_db)):
+    if len(request.password) < 8:
+        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 8 ký tự")
+    if not is_valid_email(request.email):
+        raise HTTPException(status_code=400, detail="Email không hợp lệ")
+    if db.query(User).filter_by(email=request.email).first():
+        raise HTTPException(status_code=400, detail="Email đã được sử dụng")
+    
+    salt = secrets.token_hex(16)
+    hashed_password = hash_password(request.password, salt)
+    new_user = User(username=request.username, email=request.email, password_hash=hashed_password, salt=salt, is_email_verified=False)
+    db.add(new_user)
+    
+    otp_code = str(random.randint(100000, 999999))
+    otp_entry = db.query(VerificationCode).filter_by(email=request.email).first()
+    if otp_entry:
+        db.delete(otp_entry)
+    new_otp = VerificationCode(email=request.email, code=otp_code, created_at=datetime.utcnow())
+    db.add(new_otp)
+    db.commit()
+    
+    return {"message": "Mã OTP đã được gửi", "otp": otp_code}
+
+# Xác thực OTP
+@router.post("/verify-otp/")
+def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
+    verification_entry = db.query(VerificationCode).filter_by(email=request.email).first()
+    if not verification_entry or verification_entry.code != request.otp:
+        raise HTTPException(status_code=400, detail="Mã OTP không chính xác hoặc không tồn tại")
+    
+    otp_expiry_time = verification_entry.created_at + timedelta(minutes=5)
+    if datetime.utcnow() > otp_expiry_time:
+        db.delete(verification_entry)
+        db.commit()
+        raise HTTPException(status_code=400, detail="Mã OTP đã hết hạn. Vui lòng yêu cầu lại mã mới.")
+    
+    user = db.query(User).filter_by(email=request.email).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Không tìm thấy tài khoản. Vui lòng đăng ký lại.")
+    
+    user.is_email_verified = True
+    db.delete(verification_entry)
+    db.commit()
+    
+    return {"message": "Xác thực OTP thành công! Tài khoản đã được kích hoạt."}
+
+# Đăng nhập
+@router.post("/login/")
+def login(request: UserLoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == request.username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Tài khoản không tồn tại")
+    if not verify_password(request.password, user.password_hash, user.salt):
+        raise HTTPException(status_code=401, detail="Mật khẩu không đúng")
+    if not user.is_email_verified:
+        raise HTTPException(status_code=403, detail="Email chưa được xác thực")
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    return {"message": "Đăng nhập thành công", "access_token": access_token, "token_type": "bearer"}
+
+# Đặt lại mật khẩu
+@router.post("/reset-password/")
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    if request.new_password != request.confirm_password:
+        raise HTTPException(status_code=400, detail="Xác nhận mật khẩu không khớp")
+    if len(request.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 8 ký tự")
+
+    user = db.query(User).filter_by(email=request.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Email không tồn tại")
+    
+    salt = secrets.token_hex(16) 
+    user.salt = salt
+    user.password_hash = hash_password(request.new_password, salt)
+    
+    db.commit() 
+    return {"message": "Mật khẩu đã được đặt lại thành công"}
