@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.verification_code import VerificationCode
-from app.service.email import generate_otp, send_otp_email
+from app.service.email_otp import generate_otp, send_otp_email
 from app.service.security import hash_password, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, is_valid_email
 
 def login_user(request, db: Session):
