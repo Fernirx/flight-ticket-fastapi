@@ -13,7 +13,3 @@ class UserRegisterRequest(BaseModel):
     username: str
     email: EmailStr
     password: str
-    
-class VerifyOTPRequest(BaseModel):
-    email: EmailStr
-    otp: str
