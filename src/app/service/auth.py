@@ -2,7 +2,8 @@ from datetime import timedelta, datetime
 import secrets
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from app.models.models import User, VerificationCode
+from app.models.user import User
+from app.models.verification_code import VerificationCode
 from app.service.security import hash_password, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
 def login_user(request, db: Session):
@@ -17,6 +18,40 @@ def login_user(request, db: Session):
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
     return {"message": "Đăng nhập thành công", "access_token": access_token, "token_type": "bearer"}
+
+def register_user(request, db: Session):
+    if len(request.password) < 8:
+        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 8 ký tự")
+    if not is_valid_email(request.email):
+        raise HTTPException(status_code=400, detail="Email không hợp lệ")
+    if db.query(User).filter_by(email=request.email).first():
+        raise HTTPException(status_code=400, detail="Email đã được sử dụng")
+    if db.query(User).filter_by(username=request.username).first():
+        raise HTTPException(status_code=400, detail="Username đã được sử dụng")
+    
+    salt = secrets.token_hex(16)
+    hashed_password = hash_password(request.password, salt)
+    new_user = User(
+        username=request.username,
+        email=request.email,
+        password_hash=hashed_password,
+        salt=salt,
+        is_email_verified=False
+    )
+    db.add(new_user)
+    
+    otp_code = generate_otp()  # Hàm tạo OTP được định nghĩa trong service_email
+    send_otp_email(request.email, otp_code)  # Gửi OTP qua email
+    
+    # Xóa OTP cũ nếu có
+    otp_entry = db.query(VerificationCode).filter_by(email=request.email).first()
+    if otp_entry:
+        db.delete(otp_entry)
+    new_otp = VerificationCode(email=request.email, code=otp_code, created_at=datetime.utcnow())
+    db.add(new_otp)
+    db.commit()
+    
+    return {"message": "Mã OTP đã được gửi qua email. Vui lòng kiểm tra hộp thư!", "otp": otp_code}
 
 def reset_password_service(request, db: Session):
     if request.new_password != request.confirm_password:
