@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.schemas.otp import VerifyOTPRequest
-from app.schemas.user import UserLoginRequest, ResetPasswordRequest
+from app.schemas.user import UserLoginRequest, ResetPasswordRequest, UserRegisterRequest
 from app.config.database import get_db
-from app.service.auth import verify_otp_service, login_user, reset_password_service
+from app.service.auth import verify_otp_service, login_user, reset_password_service, register_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
