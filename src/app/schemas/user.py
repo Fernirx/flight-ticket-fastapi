@@ -9,8 +9,9 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
     confirm_password: str
     
-class UserLoginRequest(BaseModel):
+class UserRegisterRequest(BaseModel):
     username: str
+    email: EmailStr
     password: str
     
 class VerifyOTPRequest(BaseModel):
