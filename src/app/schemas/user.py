@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 
 class UserLoginRequest(BaseModel):
-    username: str
+    email: str
     password: str
 
 class ResetPasswordRequest(BaseModel):
@@ -10,6 +10,5 @@ class ResetPasswordRequest(BaseModel):
     confirm_password: str
     
 class UserRegisterRequest(BaseModel):
-    username: str
     email: EmailStr
     password: str
