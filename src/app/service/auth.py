@@ -17,7 +17,7 @@ def login_user(request, db: Session):
         raise HTTPException(status_code=403, detail="Email chưa được xác thực")
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
+    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
     return {"message": "Đăng nhập thành công", "access_token": access_token, "token_type": "bearer"}
 
 def register_user_service(request, db: Session):
