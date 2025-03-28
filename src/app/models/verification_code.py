@@ -10,3 +10,4 @@ class VerificationCode(Base):
     code = Column(String(20), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow) 
     user = relationship("User", back_populates="verification_codes")
+

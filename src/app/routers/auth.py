@@ -19,7 +19,7 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
 def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
     return verify_otp_service(request, db)
 
-@router.post("/register/")
+@router.post("/register_user/")
 def register(request: UserRegisterRequest, db: Session = Depends(get_db)):
     return register_user_service(request, db)
 

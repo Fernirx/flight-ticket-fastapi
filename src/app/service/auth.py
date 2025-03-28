@@ -31,6 +31,7 @@ def register_user_service(request, db: Session):
     salt = secrets.token_hex(16)
     hashed_password = hash_password(request.password, salt)
     new_user = User(
+        full_name=request.full_name,
         email=request.email,
         password_hash=hashed_password,
         salt=salt,

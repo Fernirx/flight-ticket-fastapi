@@ -10,5 +10,6 @@ class ResetPasswordRequest(BaseModel):
     confirm_password: str
     
 class UserRegisterRequest(BaseModel):
+    full_name:str
     email: EmailStr
     password: str
