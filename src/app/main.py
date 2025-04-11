@@ -1,4 +1,5 @@
 from app.routers import auth
+from app.routers import search
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,6 +15,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(search.ticket_router)
 @app.get("/")
 def home():
     return {"message": "Hello, FastAPI!"}
