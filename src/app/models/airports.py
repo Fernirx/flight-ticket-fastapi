@@ -4,8 +4,8 @@ from app.config.database import Base
 class Airport(Base):
     __tablename__ = "airports"
 
-    id = Column(Integer, primary_key=True, index=True)
-    code = Column(String(3), nullable=False)
-    name = Column(String(255), nullable=False)
-    city = Column(String(255), nullable=False)
-    country = Column(String(255), nullable=False)
+    id = Column(Integer(unsigned=True), primary_key=True, index=True, autoincrement=True)
+    code = Column(String(10), nullable=False, unique=True)
+    name = Column(String(100), nullable=False)
+    city = Column(String(50), nullable=True)
+    country = Column(String(50), nullable=True)

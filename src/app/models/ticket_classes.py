@@ -1,10 +1,9 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime
+from sqlalchemy import Column, Integer,Enum,Numeric
 from app.config.database import Base
 
 class ShoppingCart(Base):
-    __tablename__ = "shopping_carts"
+    __tablename__ = "ticket_classes"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, nullable=False)
-    updated_at = Column(DateTime, nullable=False)
+    id = Column(Integer(unsigned=True), primary_key=True, index=True,autoincrement=True,nullable=False)
+    class_name = Column(Enum("Economy","Premium Economy","Business"),nullable=False)
+    price_multiplier=Numeric(5,2),default=1,nullable=False
