@@ -13,3 +13,4 @@ class UserRegisterRequest(BaseModel):
     full_name:str
     email: EmailStr
     password: str
+    

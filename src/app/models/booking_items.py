@@ -7,7 +7,7 @@ from app.config.database import Base
 class BookingItem(Base):
     __tablename__ = "booking_items"
 
-    id = Column(INTEGER(unsigned=True), primary_key=True, index=True)
+    id = Column(INTEGER(unsigned=True), primary_key=True, index=True, autoincrement=True)
     booking_id = Column(INTEGER(unsigned=True), ForeignKey("bookings.id"), nullable=False)
     trip_type = Column(Enum("one way", "round trip"), nullable=False)
     departure_flight_id = Column(INTEGER(unsigned=True), ForeignKey("flights.id"), nullable=False)

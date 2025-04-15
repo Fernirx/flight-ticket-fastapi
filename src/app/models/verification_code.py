@@ -5,9 +5,9 @@ from app.config.database import Base
 class VerificationCode(Base):
     __tablename__ = "verification_codes"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     email = Column(String(100), ForeignKey("users.email", ondelete="CASCADE"), nullable=False)
     code = Column(String(20), nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow) 
+    created_at = Column(DateTime, default=datetime.datetime.now) 
     user = relationship("User", back_populates="verification_codes")
 
