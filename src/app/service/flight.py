@@ -39,6 +39,9 @@ def search_flight_service(request: FlightSearchRequest, db: Session) -> List[Fli
         FlightPrice.ticket_class_id == ticket_classes.id
     ).all()
     
+    if not flight_prices:
+        raise HTTPException(status_code=404, detail="Không tìm thấy giá vé cho chuyến bay này")
+    
     response = []
     for flight in flights:
         flight_price = next((fp for fp in flight_prices if fp.flight_id == flight.id), None)

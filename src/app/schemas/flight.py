@@ -1,9 +1,10 @@
+from datetime import date
 from pydantic import BaseModel
 
 class FlightSearchRequest(BaseModel):
     departure_location: str
     arrival_location: str
-    departure_date: str
+    departure_date: date
     ticket_classes: str | None = None
     number_adults: int = 1
     number_children: int = 0

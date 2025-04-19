@@ -7,6 +7,6 @@ from app.service.flight import search_flight_service
 
 router = APIRouter(prefix="/flight", tags=["Flight"])
 
-@router.post("/search_flight/")
-def search_flight(request: FlightSearchRequest, db: Session = Depends(get_db), response_model=List[FlightSearchResponse]):
+@router.post("/search_flight/", response_model=List[FlightSearchResponse])
+def search_flight(request: FlightSearchRequest, db: Session = Depends(get_db)):
     return search_flight_service(request, db)
