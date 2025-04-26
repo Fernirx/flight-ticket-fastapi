@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from typing import List
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -13,6 +14,12 @@ def get_airport_by_code(db: Session, code: str) -> Airport:
         raise HTTPException(status_code=404, detail="Sân bay không tồn tại")
     return airport
 
+def get_airport_by_id(db: Session, code: str) -> Airport:
+    airport = db.query(Airport).filter(Airport.id == code).first()
+    if not airport:
+        raise HTTPException(status_code=404, detail="Sân bay không tồn tại")
+    return airport
+
 def get_ticket_class_by_name(db: Session, ticket_class_name: str) -> TicketClasses:
     ticket_class = db.query(TicketClasses).filter(TicketClasses.class_name == ticket_class_name).first()
     if not ticket_class:
@@ -22,14 +29,23 @@ def get_ticket_class_by_name(db: Session, ticket_class_name: str) -> TicketClass
 def search_flight_service(request: FlightSearchRequest, db: Session) -> List[FlightSearchResponse]:
     # Lấy danh sách các chuyến bay từ cơ sở dữ liệu
     departure_airport = get_airport_by_code(db, request.departure_location)
-    arrival_airport = get_airport_by_code(db, request.arrival_location)
-    flights = db.query(Flight).filter(
+    arrival_airport = None
+    
+    if request.arrival_location:  # Nếu có điểm đến, lấy thông tin điểm đến
+        arrival_airport = get_airport_by_code(db, request.arrival_location)
+        
+    query = db.query(Flight).filter(
         Flight.departure_airport_id == departure_airport.id,
-        Flight.arrival_airport_id == arrival_airport.id,
-        Flight.departure_time >= request.departure_date,
+        func.date(Flight.departure_time) >= request.departure_date,
         Flight.available_seats >= request.number_adults + request.number_children + request.number_infants
-    ).all()
-    if not flights:
+    )
+    
+    if arrival_airport is not None:
+        query = query.filter(Flight.arrival_airport_id == arrival_airport.id)
+    
+    flights = query.all()
+    
+    if not flights: 
         raise HTTPException(status_code=404, detail="Không tìm thấy chuyến bay nào")
 
     ticket_classes = get_ticket_class_by_name(db, request.ticket_classes)
@@ -45,6 +61,8 @@ def search_flight_service(request: FlightSearchRequest, db: Session) -> List[Fli
     response = []
     for flight in flights:
         flight_price = next((fp for fp in flight_prices if fp.flight_id == flight.id), None)
+        arrival_airport = get_airport_by_id(db, flight.arrival_airport_id) if flight.arrival_airport_id else None
+        
         if flight_price:
             total_price = (flight_price.adult_price * request.number_adults +
                            flight_price.child_price * request.number_children +
@@ -53,7 +71,7 @@ def search_flight_service(request: FlightSearchRequest, db: Session) -> List[Fli
                 airline_name=flight.airline_name,
                 flight_number=flight.flight_number,
                 departure_airport=departure_airport.code,
-                arrival_airport=arrival_airport.code,
+                arrival_airport= arrival_airport.code if arrival_airport else None,
                 departure_time=flight.departure_time.isoformat(),
                 arrival_time=flight.arrival_time.isoformat(),
                 total_price=total_price
