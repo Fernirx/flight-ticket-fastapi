@@ -84,6 +84,9 @@ def add_flight_service(request, db: Session):
     if len(request.price_tables) > 3:
         raise HTTPException(status_code=400, detail="Chỉ cho phép thêm tối đa 3 hạng vé.")
     
+    if request.departure_time >= request.arrival_time:
+        raise HTTPException(status_code=400, detail="Thời gian khởi hành phải trước thời gian đến")
+    
     departure_airport = get_airport_by_code(db, request.departure_airport_code)
     arrival_airport = get_airport_by_code(db, request.arrival_airport_code)
     
@@ -112,8 +115,6 @@ def add_flight_service(request, db: Session):
     db.add(new_flight)
     db.commit()
     db.refresh(new_flight)
-
-    # Tạo đối tượng giá vé mới
 
     for price_table in request.price_tables:
         db.add(FlightPrice(

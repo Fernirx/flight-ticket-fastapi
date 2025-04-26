@@ -2,12 +2,12 @@
 import smtplib
 import random
 from email.message import EmailMessage
-
+from config import settings
 # Cấu hình SMTP
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-EMAIL_SENDER = "khanhduy030204@gmail.com"
-EMAIL_PASSWORD = "wkei bkoh dakd gmwn"  
+SMTP_SERVER = settings.SMTP_SERVER
+SMTP_PORT = settings.SMTP_PORT
+EMAIL_SENDER = settings.EMAIL_SENDER
+EMAIL_PASSWORD = settings.EMAIL_PASSWORD
 
 def generate_otp():
     """Tạo mã OTP ngẫu nhiên gồm 6 chữ số"""
