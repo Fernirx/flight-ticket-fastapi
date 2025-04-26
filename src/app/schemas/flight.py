@@ -1,4 +1,5 @@
 from datetime import date
+from typing import List
 from pydantic import BaseModel
 
 class FlightSearchRequest(BaseModel):
@@ -18,3 +19,22 @@ class FlightSearchResponse(BaseModel):
     departure_time: str
     arrival_time: str
     total_price: float
+    
+class PriceTable(BaseModel):
+    ticket_class_name: str  # Tên hạng vé (economy, business,...)
+    adult_price: float  # Giá vé người lớn
+    children_price: float  # Giá vé trẻ em
+    infant_price: float  # Giá vé em bé
+    
+class FlightAddRequest(BaseModel):
+    flight_number: str
+    airline_name: str
+    departure_airport_code: str
+    arrival_airport_code: str
+    departure_time: date
+    arrival_time: date
+    available_seats: int
+    price_tables: List[PriceTable]
+    
+    
+    

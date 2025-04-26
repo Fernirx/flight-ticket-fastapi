@@ -80,3 +80,49 @@ def search_flight_service(request: FlightSearchRequest, db: Session) -> List[Fli
 
     return response
     
+def add_flight_service(request, db: Session):
+    if len(request.price_tables) > 3:
+        raise HTTPException(status_code=400, detail="Chỉ cho phép thêm tối đa 3 hạng vé.")
+    
+    departure_airport = get_airport_by_code(db, request.departure_airport_code)
+    arrival_airport = get_airport_by_code(db, request.arrival_airport_code)
+    
+    # Kiểm tra xem chuyến bay đã tồn tại chưa
+    existing_flight = db.query(Flight).filter(
+        Flight.flight_number == request.flight_number,
+        Flight.departure_airport_id == departure_airport.id,
+        Flight.arrival_airport_id == arrival_airport.id,
+        func.date(Flight.departure_time) == request.departure_time
+    ).first()
+
+    if existing_flight:
+        raise HTTPException(status_code=400, detail="Chuyến bay đã tồn tại")
+
+    # Tạo đối tượng chuyến bay mới
+    new_flight = Flight(
+        flight_number=request.flight_number,
+        airline_name=request.airline_name,
+        departure_airport_id=departure_airport.id,
+        arrival_airport_id=arrival_airport.id,
+        departure_time=request.departure_time,
+        arrival_time=request.arrival_time,
+        available_seats=request.available_seats
+    )
+    
+    db.add(new_flight)
+    db.commit()
+    db.refresh(new_flight)
+
+    # Tạo đối tượng giá vé mới
+
+    for price_table in request.price_tables:
+        db.add(FlightPrice(
+            flight_id=new_flight.id,
+            ticket_class_id=get_ticket_class_by_name(db, price_table.ticket_class_name).id,
+            adult_price=price_table.adult_price,
+            child_price=price_table.children_price,
+            infant_price=price_table.infant_price
+        ))
+    db.commit()
+    
+    return {"message": "Thêm chuyến bay thành công", "flight_id": new_flight.id}
