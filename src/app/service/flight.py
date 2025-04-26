@@ -1,3 +1,4 @@
+from datetime import timedelta
 from sqlalchemy import func
 from typing import List
 from fastapi import HTTPException
@@ -33,10 +34,10 @@ def search_flight_service(request: FlightSearchRequest, db: Session) -> List[Fli
     
     if request.arrival_location:  # Nếu có điểm đến, lấy thông tin điểm đến
         arrival_airport = get_airport_by_code(db, request.arrival_location)
-        
+
     query = db.query(Flight).filter(
         Flight.departure_airport_id == departure_airport.id,
-        func.date(Flight.departure_time) >= request.departure_date,
+        func.date(Flight.departure_time).between(request.departure_date, request.departure_date + timedelta(days=7)),
         Flight.available_seats >= request.number_adults + request.number_children + request.number_infants
     )
     
