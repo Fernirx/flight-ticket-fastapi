@@ -57,7 +57,7 @@ def register_user_service(request, db: Session):
     db.add(new_otp)
     db.commit()
     
-    return {"message": "Mã OTP đã được gửi qua email. Vui lòng kiểm tra hộp thư!"}
+    return {"message": "Mã OTP đã được gửi"}
 
 def reset_password_service(request, db: Session):
     if request.new_password != request.confirm_password:

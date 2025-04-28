@@ -15,8 +15,8 @@ def get_airport_by_code(db: Session, code: str) -> Airport:
         raise HTTPException(status_code=404, detail="Sân bay không tồn tại")
     return airport
 
-def get_airport_by_id(db: Session, code: str) -> Airport:
-    airport = db.query(Airport).filter(Airport.id == code).first()
+def get_airport_by_id(db: Session, id: str) -> Airport:
+    airport = db.query(Airport).filter(Airport.id == id).first()
     if not airport:
         raise HTTPException(status_code=404, detail="Sân bay không tồn tại")
     return airport
@@ -29,27 +29,30 @@ def get_ticket_class_by_name(db: Session, ticket_class_name: str) -> TicketClass
 
 def search_flight_service(request: FlightSearchRequest, db: Session) -> List[FlightSearchResponse]:
     # Lấy danh sách các chuyến bay từ cơ sở dữ liệu
-    departure_airport = get_airport_by_code(db, request.departure_location)
+    departure_airport = get_airport_by_code(db, request.departure_airport_code)
     arrival_airport = None
+    departure_time = request.departure_time
+    departure_time_of_7_days = departure_time + timedelta(days=7)
+    total_number_of_passengers = request.number_adults + request.number_children + request.number_infants
+    ticket_classes = get_ticket_class_by_name(db, request.ticket_classes)
     
-    if request.arrival_location:  # Nếu có điểm đến, lấy thông tin điểm đến
-        arrival_airport = get_airport_by_code(db, request.arrival_location)
-
+    if request.arrival_airport_code:  # Nếu có mã sân bay đến, thì tìm kiếm theo mã đó
+        arrival_airport = get_airport_by_code(db, request.arrival_airport_code)
+    
     query = db.query(Flight).filter(
         Flight.departure_airport_id == departure_airport.id,
-        func.date(Flight.departure_time).between(request.departure_date, request.departure_date + timedelta(days=7)),
-        Flight.available_seats >= request.number_adults + request.number_children + request.number_infants
+        func.date(Flight.departure_time).between(departure_time, departure_time_of_7_days),
+        Flight.available_seats >= total_number_of_passengers
     )
     
+    # Nếu có mã sân bay đến, thì thêm điều kiện tìm kiếm theo mã đó
     if arrival_airport is not None:
         query = query.filter(Flight.arrival_airport_id == arrival_airport.id)
     
     flights = query.all()
     
     if not flights: 
-        raise HTTPException(status_code=404, detail="Không tìm thấy chuyến bay nào")
-
-    ticket_classes = get_ticket_class_by_name(db, request.ticket_classes)
+        raise HTTPException(status_code=404, detail="Không tìm thấy chuyến bay")
 
     flight_prices = db.query(FlightPrice).filter(
         FlightPrice.flight_id.in_([flight.id for flight in flights]),
@@ -57,24 +60,33 @@ def search_flight_service(request: FlightSearchRequest, db: Session) -> List[Fli
     ).all()
     
     if not flight_prices:
-        raise HTTPException(status_code=404, detail="Không tìm thấy giá vé cho chuyến bay này")
+        raise HTTPException(status_code=404, detail="Không tìm thấy giá vé")
     
     response = []
+    arrival_airport_ids = [flight.arrival_airport_id for flight in flights]
+    arrival_airports = db.query(Airport).filter(Airport.id.in_(arrival_airport_ids)).all()
+    arrival_airport_map = {airport.id: airport for airport in arrival_airports}
     for flight in flights:
         flight_price = next((fp for fp in flight_prices if fp.flight_id == flight.id), None)
-        arrival_airport = get_airport_by_id(db, flight.arrival_airport_id) if flight.arrival_airport_id else None
+        arrival_airport = arrival_airport_map.get(flight.arrival_airport_id)
+        
+        if not arrival_airport:
+            raise HTTPException(status_code=404, detail="Sân bay đến không tồn tại")
         
         if flight_price:
             total_price = (flight_price.adult_price * request.number_adults +
                            flight_price.child_price * request.number_children +
                            flight_price.infant_price * request.number_infants)
+            
             response.append(FlightSearchResponse(
                 airline_name=flight.airline_name,
                 flight_number=flight.flight_number,
                 departure_airport=departure_airport.code,
-                arrival_airport= arrival_airport.code if arrival_airport else None,
-                departure_time=flight.departure_time.isoformat(),
-                arrival_time=flight.arrival_time.isoformat(),
+                arrival_airport= arrival_airport.code,
+                departure_time=flight.departure_time,
+                arrival_time=flight.arrival_time,
+                ticket_class_name=ticket_classes.class_name,
+                available_seats=flight.available_seats,
                 total_price=total_price
             ))
 
@@ -95,7 +107,8 @@ def add_flight_service(request, db: Session):
         Flight.flight_number == request.flight_number,
         Flight.departure_airport_id == departure_airport.id,
         Flight.arrival_airport_id == arrival_airport.id,
-        func.date(Flight.departure_time) == request.departure_time
+        Flight.departure_time <= request.arrival_time,
+        Flight.arrival_time >= request.departure_time   
     ).first()
 
     if existing_flight:
@@ -121,7 +134,7 @@ def add_flight_service(request, db: Session):
             flight_id=new_flight.id,
             ticket_class_id=get_ticket_class_by_name(db, price_table.ticket_class_name).id,
             adult_price=price_table.adult_price,
-            child_price=price_table.children_price,
+            child_price=price_table.child_price,
             infant_price=price_table.infant_price
         ))
     db.commit()

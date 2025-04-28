@@ -1,40 +1,43 @@
-from datetime import date
+from datetime import date, datetime
 from typing import List
 from pydantic import BaseModel
 
 class FlightSearchRequest(BaseModel):
-    departure_location: str
-    arrival_location: str
-    departure_date: date
-    ticket_classes: str | None = None
-    number_adults: int = 1
-    number_children: int = 0
-    number_infants: int = 0
+    departure_airport_code: str # Mã sân bay khởi hành
+    arrival_airport_code: str # Mã sân bay đến nơi
+    departure_time: date # Ngày khởi hành
+    ticket_classes: str | None = None # Hạng vé (economy, business,...)
+    number_adults: int = 1 # Số lượng người lớn
+    number_children: int = 0 # Số lượng trẻ em
+    number_infants: int = 0 # Số lượng em bé
     
 class FlightSearchResponse(BaseModel):
-    airline_name: str
-    flight_number: str
-    departure_airport: str
-    arrival_airport: str
-    departure_time: str
-    arrival_time: str
-    total_price: float
+    airline_name: str # Tên hãng hàng không
+    flight_number: str # Số hiệu chuyến bay
+    departure_airport: str # Tên sân bay khởi hành
+    arrival_airport: str # Tên sân bay đến nơi
+    departure_time: datetime # Thời gian khởi hành
+    arrival_time: datetime # Thời gian đến nơi
+    ticket_class_name: str # Tên hạng vé (economy, business,...)
+    available_seats: int # Số ghế còn trống
+    total_price: float # Tổng giá vé cho tất cả hành khách
     
 class PriceTable(BaseModel):
     ticket_class_name: str  # Tên hạng vé (economy, business,...)
     adult_price: float  # Giá vé người lớn
-    children_price: float  # Giá vé trẻ em
+    child_price: float  # Giá vé trẻ em
     infant_price: float  # Giá vé em bé
     
 class FlightAddRequest(BaseModel):
-    flight_number: str
-    airline_name: str
-    departure_airport_code: str
-    arrival_airport_code: str
-    departure_time: date
-    arrival_time: date
-    available_seats: int
-    price_tables: List[PriceTable]
+    flight_number: str # Số hiệu chuyến bay
+    airline_name: str # Tên hãng hàng không
+    departure_airport_code: str # Mã sân bay khởi hành
+    arrival_airport_code: str # Mã sân bay đến nơi
+    departure_time: datetime # Ngày khởi hành
+    arrival_time: datetime # Ngày đến nơi
+    available_seats: int # Số ghế còn trống
+    price_tables: List[PriceTable] # Bảng giá cho các hạng vé khác nhau
+    
     
     
     
