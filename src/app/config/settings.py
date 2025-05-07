@@ -1,16 +1,33 @@
-import os
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
+from pydantic import EmailStr
 
-# Load environment variables from .env file
-load_dotenv()
+class Settings(BaseSettings):
+    """Settings for the application."""
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-EMAIL_SENDER = os.getenv("EMAIL_SENDER")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN)_EXPIRE_MINUTES", 30))
-DEBUG = os.getenv("DEBUG") == "True"
+    # Database settings
+    DATABASE_URL: str
+    DATABASE_NAME: str
+    DATABASE_USER: str
+    DATABASE_PASSWORD: str
+    DATABASE_HOST: str
+    DATABASE_PORT: int
+    
+    #JWT settings
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    
+    # Email settings
+    SMTP_SERVER: str
+    SMTP_PORT: int
+    EMAIL_SENDER: EmailStr
+    EMAIL_PASSWORD: str
 
+    class Config:
+        """Configuration for the settings."""
+        env_file = "app/.env"
+        env_file_encoding = "utf-8"
+        
+settings = Settings()
+        
+    
