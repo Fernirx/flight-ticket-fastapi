@@ -1,5 +1,6 @@
 from datetime import timedelta, datetime
 import secrets
+from app.schemas.google_auth import AuthResponse
 import httpx
 from app.config.settings import settings
 from app.schemas.user import UserResponse
@@ -39,8 +40,6 @@ def create_google_login_url(request: Request):
     redirect_uri = GOOGLE_REDIRECT_URI
     authorization_url = "https://accounts.google.com/o/oauth2/v2/auth"
     scope = ["openid", "email", "profile"]
-    response_type = "code"
-    access_type = "offline"
     auth_url = httpx.URL(authorization_url, params={
         "client_id": client_id,
         "redirect_uri": str(redirect_uri),  # Chuyển URL thành string
@@ -50,9 +49,69 @@ def create_google_login_url(request: Request):
     })
     return RedirectResponse(auth_url)
     
-async def handle_google_callback(request, code):
-    print("x lớn hơn 5")
-    return None
+async def handle_google_callback(code, db: Session):
+    token_data = {
+        'code': code,
+        'client_id': GOOGLE_CLIENT_ID,
+        'client_secret': GOOGLE_CLIENT_SECRET,
+        'redirect_uri': GOOGLE_REDIRECT_URI,
+        'grant_type': 'authorization_code',
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # Trao đổi code để lấy token
+            token_resp = await client.post(
+                "https://accounts.google.com/o/oauth2/token",
+                data=token_data,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            token_resp.raise_for_status()
+            token = token_resp.json()
+            access_token = token.get('access_token')
+            if not access_token:
+                raise HTTPException(status_code=400, detail="Không lấy được access token từ Google")
+
+            # Lấy thông tin người dùng
+            user_info_resp = await client.get(
+                "https://www.googleapis.com/oauth2/v1/userinfo",
+                headers={'Authorization': f"Bearer {access_token}"}
+            )
+            user_info_resp.raise_for_status()
+            user_info = user_info_resp.json()
+
+        # Kiểm tra xem người dùng đã tồn tại trong cơ sở dữ liệu chưa
+        user = db.query(User).filter_by(email=user_info.get('email')).first()
+        if not user:
+            new_user = User(
+                full_name=user_info.get('name'),
+                email=user_info.get('email'),
+                password_hash=None,
+                salt=None,
+                is_email_verified=True
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            user = new_user
+
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
+
+        # Lưu session
+        return AuthResponse(
+            message="Đăng nhập bằng Google thành công",
+            access_token=access_token,
+            token_type="bearer",
+            user=UserResponse(
+                id=user.id, 
+                full_name=user.full_name, 
+                email=user.email
+            ).dict()
+        )
+
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi lấy token hoặc thông tin người dùng: {e}")
 
 def register_user_service(request, db: Session):
     if len(request.password) < 8:

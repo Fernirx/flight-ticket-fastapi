@@ -1,3 +1,4 @@
+from http.client import HTTPException
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -17,12 +18,14 @@ async def google_login(request: Request):
     return create_google_login_url(request)
 
 @router.get("/google/callback/")
-async def google_callback(request: Request, code: str):
-    user = await handle_google_callback(request, code)
-    if user:
-        return RedirectResponse("/")
+async def google_callback(request: Request, code: str, db: Session = Depends(get_db)):
+    response = await handle_google_callback(code, db)
+    if response is not None:
+        # Truy cập trực tiếp các thuộc tính của `response.user`
+        redirect_url = f"https://dcwizard.io.vn?access_token={response.access_token}&full_name={response.user.full_name}&email={response.user.email}"
+        return RedirectResponse(url=redirect_url)
     else:
-        return {"message": "Login failed"}
+        raise HTTPException(status_code=400, detail="Failed to authenticate with Google.")
 
 @router.post("/reset-password/")
 def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):

@@ -17,7 +17,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     if expires_delta is None:
         expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = data.copy()
-    to_encode.update({"exp": datetime.now(datetime.timezone.utc) + expires_delta})
+    to_encode.update({"exp": datetime.utcnow() + expires_delta}) 
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 # Hàm hash mật khẩu
