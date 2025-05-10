@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     SMTP_PORT: int
     EMAIL_SENDER: EmailStr
     EMAIL_PASSWORD: str
+    
+    # Google settings
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_REDIRECT_URI: str
 
     class Config:
         """Configuration for the settings."""

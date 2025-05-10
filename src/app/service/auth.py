@@ -1,12 +1,19 @@
 from datetime import timedelta, datetime
 import secrets
+import httpx
+from app.config.settings import settings
 from app.schemas.user import UserResponse
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.verification_code import VerificationCode
 from app.service.email_otp import generate_otp, send_otp_email
 from app.service.security import hash_password, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, is_valid_email
+
+GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET = settings.GOOGLE_CLIENT_SECRET
+GOOGLE_REDIRECT_URI = settings.GOOGLE_REDIRECT_URI
 
 def login_user(request, db: Session):
     user = db.query(User).filter(User.email == request.email).first()
@@ -26,6 +33,26 @@ def login_user(request, db: Session):
         "token_type": "bearer",
         "user": user_response
     }
+
+def create_google_login_url(request: Request):
+    client_id = GOOGLE_CLIENT_ID
+    redirect_uri = GOOGLE_REDIRECT_URI
+    authorization_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    scope = ["openid", "email", "profile"]
+    response_type = "code"
+    access_type = "offline"
+    auth_url = httpx.URL(authorization_url, params={
+        "client_id": client_id,
+        "redirect_uri": str(redirect_uri),  # Chuyển URL thành string
+        "scope": " ".join(scope),
+        "response_type": "code",
+        "access_type": "offline",
+    })
+    return RedirectResponse(auth_url)
+    
+async def handle_google_callback(request, code):
+    print("x lớn hơn 5")
+    return None
 
 def register_user_service(request, db: Session):
     if len(request.password) < 8:

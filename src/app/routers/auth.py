@@ -1,15 +1,28 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.schemas.otp import VerifyOTPRequest, ResendOTPRequest
 from app.schemas.user import UserLoginRequest, ResetPasswordRequest, UserRegisterRequest
 from app.config.database import get_db
-from app.service.auth import verify_otp_service, login_user, reset_password_service, register_user_service, resent_otp_service
+from app.service.auth import verify_otp_service, login_user, reset_password_service, register_user_service, resent_otp_service, create_google_login_url, handle_google_callback
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login/")
 def login(request: UserLoginRequest, db: Session = Depends(get_db)):
     return login_user(request, db)
+
+@router.get("/google/login/")
+async def google_login(request: Request):
+    return create_google_login_url(request)
+
+@router.get("/google/callback/")
+async def google_callback(request: Request, code: str):
+    user = await handle_google_callback(request, code)
+    if user:
+        return RedirectResponse("/")
+    else:
+        return {"message": "Login failed"}
 
 @router.post("/reset-password/")
 def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
