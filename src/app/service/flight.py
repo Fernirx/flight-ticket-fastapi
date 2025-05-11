@@ -7,7 +7,7 @@ from app.models.flights import Flight
 from app.models.flight_prices import FlightPrice
 from app.models.ticket_classes import TicketClasses
 from app.models.airports import Airport
-from app.schemas.flight import FlightSearchRequest, FlightSearchResponse
+from app.schemas.flight import FlightSearchRequest, FlightSearchResponse, FlightSearchAllResponse, PriceTable
 
 def get_airport_by_code(db: Session, code: str) -> Airport:
     airport = db.query(Airport).filter(Airport.code == code).first()
@@ -140,3 +140,43 @@ def add_flight_service(request, db: Session):
     db.commit()
     
     return {"message": "Thêm chuyến bay thành công", "flight_id": new_flight.id}
+
+
+def search_flight_all_service(db: Session) -> List[FlightSearchResponse]:
+    # Lấy danh sách các chuyến bay từ cơ sở dữ liệu
+    flights = db.query(Flight).all()
+    
+    if not flights: 
+        raise HTTPException(status_code=404, detail="Không tìm thấy chuyến bay")
+    
+    response = []
+    for flight in flights:
+        
+        departure_airport = get_airport_by_id(db, flight.departure_airport_id)
+        if not departure_airport:
+            raise HTTPException(status_code=404, detail="Sân bay đi không tồn tại")
+        
+        arrival_airport = get_airport_by_id(db, flight.arrival_airport_id)
+        if not arrival_airport:
+            raise HTTPException(status_code=404, detail="Sân bay đến không tồn tại")
+        
+        response.append(FlightSearchAllResponse(
+            flight_number=flight.flight_number,
+            airline_name=flight.airline_name,
+            departure_airport=departure_airport.code,
+            arrival_airport=arrival_airport.code,
+            departure_time=flight.departure_time,
+            arrival_time=flight.arrival_time,
+            available_seats=flight.available_seats,
+            price_tables=[
+                PriceTable(
+                    ticket_class_name=ticket_class.class_name,
+                    adult_price=flight_price.adult_price,
+                    child_price=flight_price.child_price,
+                    infant_price=flight_price.infant_price
+                )
+                for flight_price in db.query(FlightPrice).filter(FlightPrice.flight_id == flight.id).all()
+                for ticket_class in db.query(TicketClasses).filter(TicketClasses.id == flight_price.ticket_class_id).all()
+            ]
+        ))
+    return response

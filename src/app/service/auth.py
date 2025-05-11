@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime
 import secrets
-from app.schemas.user import UserResponse
+from app.schemas.user import LoginResponse, UserResponse
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.user import User
@@ -20,12 +20,12 @@ def login_user(request, db: Session):
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
     user_response = UserResponse(id=user.id, full_name=user.full_name, email=user.email)
-    return {
-        "message": "Đăng nhập thành công", 
-        "access_token": access_token, 
-        "token_type": "bearer",
-        "user": user_response
-    }
+    return LoginResponse(
+        message="Đăng nhập thành công",
+        access_token=access_token,
+        token_type="bearer",
+        user=user_response
+    )
 
 def register_user_service(request, db: Session):
     if len(request.password) < 8:

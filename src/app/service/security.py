@@ -1,3 +1,6 @@
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 import jwt
@@ -13,12 +16,25 @@ ALGORITHM = settings.ALGORITHM
 # Function to create JWT token
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 # Hàm tạo JWT token
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login/")
+
 def create_access_token(data: dict, expires_delta: timedelta = None):
     if expires_delta is None:
         expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = data.copy()
-    to_encode.update({"exp": datetime.now(datetime.timezone.utc) + expires_delta})
+    to_encode.update({"exp": datetime.utcnow() + expires_delta})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_current_admin(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Không thể xác thực")
+        return email
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token không hợp lệ")
 
 # Hàm hash mật khẩu
 def hash_password(password: str, salt: str) -> str:

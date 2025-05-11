@@ -18,3 +18,9 @@ class UserResponse(BaseModel):
     id: int
     full_name: str
     email: EmailStr
+    
+class LoginResponse(BaseModel):
+    message: str
+    access_token: str
+    token_type: str
+    user: UserResponse

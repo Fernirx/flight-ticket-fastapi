@@ -22,6 +22,16 @@ class FlightSearchResponse(BaseModel):
     available_seats: int # Số ghế còn trống
     total_price: float # Tổng giá vé cho tất cả hành khách
     
+class FlightSearchAllResponse(BaseModel):
+    flight_number: str # Số hiệu chuyến bay
+    airline_name: str # Tên hãng hàng không
+    departure_airport: str # Tên sân bay khởi hành
+    arrival_airport: str # Tên sân bay đến nơi
+    departure_time: datetime # Thời gian khởi hành
+    arrival_time: datetime # Thời gian đến nơi
+    available_seats: int # Số ghế còn trống
+    price_tables: List['PriceTable'] # Bảng giá cho các hạng vé khác nhau
+    
 class PriceTable(BaseModel):
     ticket_class_name: str  # Tên hạng vé (economy, business,...)
     adult_price: float  # Giá vé người lớn
