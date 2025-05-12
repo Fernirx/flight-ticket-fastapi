@@ -23,10 +23,11 @@ class FlightSearchResponse(BaseModel):
     total_price: float # Tổng giá vé cho tất cả hành khách
     
 class FlightSearchAllResponse(BaseModel):
+    flight_id: int # ID chuyến bay
     flight_number: str # Số hiệu chuyến bay
     airline_name: str # Tên hãng hàng không
-    departure_airport: str # Tên sân bay khởi hành
-    arrival_airport: str # Tên sân bay đến nơi
+    departure_airport_code: str # Tên sân bay khởi hành
+    arrival_airport_code: str # Tên sân bay đến nơi
     departure_time: datetime # Thời gian khởi hành
     arrival_time: datetime # Thời gian đến nơi
     available_seats: int # Số ghế còn trống
@@ -48,6 +49,22 @@ class FlightAddRequest(BaseModel):
     available_seats: int # Số ghế còn trống
     price_tables: List[PriceTable] # Bảng giá cho các hạng vé khác nhau
     
+class FlightUpdateRequest(BaseModel):
+    flight_id: int # ID chuyến bay
+    flight_number: str # Số hiệu chuyến bay
+    airline_name: str # Tên hãng hàng không
+    departure_airport_code: str # Mã sân bay khởi hành
+    arrival_airport_code: str # Mã sân bay đến nơi
+    departure_time: datetime # Ngày khởi hành
+    arrival_time: datetime # Ngày đến nơi
+    available_seats: int # Số ghế còn trống
+    price_tables: List[PriceTable] # Bảng giá cho các hạng vé khác nhau
     
+class FlightDeleteRequest(BaseModel):
+    flight_ids: List[int] # ID chuyến bay
     
+class FlightDeleteResponse(BaseModel):
+    message: str
+    deleted_flight_ids: List[int]
+    not_found_flight_ids: List[int]
     

@@ -7,7 +7,7 @@ from app.models.flights import Flight
 from app.models.flight_prices import FlightPrice
 from app.models.ticket_classes import TicketClasses
 from app.models.airports import Airport
-from app.schemas.flight import FlightSearchRequest, FlightSearchResponse, FlightSearchAllResponse, PriceTable
+from app.schemas.flight import FlightSearchRequest, FlightSearchResponse, FlightSearchAllResponse, PriceTable, FlightDeleteRequest, FlightDeleteResponse
 
 def get_airport_by_code(db: Session, code: str) -> Airport:
     airport = db.query(Airport).filter(Airport.code == code).first()
@@ -161,10 +161,11 @@ def search_flight_all_service(db: Session) -> List[FlightSearchResponse]:
             raise HTTPException(status_code=404, detail="Sân bay đến không tồn tại")
         
         response.append(FlightSearchAllResponse(
+            flight_id=flight.id,
             flight_number=flight.flight_number,
             airline_name=flight.airline_name,
-            departure_airport=departure_airport.code,
-            arrival_airport=arrival_airport.code,
+            departure_airport_code=departure_airport.code,
+            arrival_airport_code=arrival_airport.code,
             departure_time=flight.departure_time,
             arrival_time=flight.arrival_time,
             available_seats=flight.available_seats,
@@ -180,3 +181,81 @@ def search_flight_all_service(db: Session) -> List[FlightSearchResponse]:
             ]
         ))
     return response
+
+def update_flight_service(request, db: Session):
+    departure_airport = get_airport_by_code(db, request.departure_airport_code)
+    arrival_airport = get_airport_by_code(db, request.arrival_airport_code)
+    
+    # Kiểm tra xem chuyến bay đã tồn tại chưa
+    update_flight = db.query(Flight).filter(request.flight_id == Flight.id).first()
+    
+    existing_flights = db.query(Flight).filter(
+        Flight.flight_number == request.flight_number,
+        Flight.departure_airport_id == departure_airport.id,
+        Flight.arrival_airport_id == arrival_airport.id,
+        Flight.departure_time <= request.arrival_time,
+        Flight.arrival_time >= request.departure_time   
+    ).first()
+    
+    if existing_flights and existing_flights.id != request.flight_id:
+        raise HTTPException(status_code=400, detail="Chuyến bay đã tồn tại")
+
+    if not update_flight:
+        raise HTTPException(status_code=400, detail="Chuyến bay không tồn tại")
+    
+    if len(request.price_tables) > 3:
+        raise HTTPException(status_code=400, detail="Chỉ cho phép thêm tối đa 3 hạng vé.")
+    
+    if request.departure_time >= request.arrival_time:
+        raise HTTPException(status_code=400, detail="Thời gian khởi hành phải trước thời gian đến")
+
+    # Cập nhật thông tin chuyến bay
+    update_flight.flight_number = request.flight_number
+    update_flight.airline_name = request.airline_name
+    update_flight.departure_airport_id = departure_airport.id
+    update_flight.arrival_airport_id = arrival_airport.id
+    update_flight.departure_time = request.departure_time
+    update_flight.arrival_time = request.arrival_time
+    update_flight.available_seats = request.available_seats
+    
+    db.commit()
+    
+    # Xóa các bảng giá cũ và thêm bảng giá mới
+    db.query(FlightPrice).filter(FlightPrice.flight_id == update_flight.id).delete()
+    
+    for price_table in request.price_tables:
+        db.add(FlightPrice(
+            flight_id=update_flight.id,
+            ticket_class_id=get_ticket_class_by_name(db, price_table.ticket_class_name).id,
+            adult_price=price_table.adult_price,
+            child_price=price_table.child_price,
+            infant_price=price_table.infant_price
+        ))
+    
+    db.commit()
+    
+    return {"message": "Cập nhật chuyến bay thành công", "flight_id": update_flight.id}
+
+def delete_flight_service(request: FlightDeleteRequest, db: Session):
+    # Lấy danh sách các chuyến bay tồn tại
+    existing_flights = db.query(Flight).filter(Flight.id.in_(request.flight_ids)).all()
+    
+    if not existing_flights:
+        raise HTTPException(status_code=404, detail="Không tìm thấy chuyến bay để xóa")
+    
+    # Lấy danh sách ID các chuyến bay hợp lệ
+    existing_flight_ids = [flight.id for flight in existing_flights]
+    
+    # Xóa các bảng giá liên quan đến chuyến bay
+    db.query(FlightPrice).filter(FlightPrice.flight_id.in_(existing_flight_ids)).delete(synchronize_session=False)
+    
+    # Xóa các chuyến bay
+    db.query(Flight).filter(Flight.id.in_(existing_flight_ids)).delete(synchronize_session=False)
+    db.commit()
+    
+    # Trả về danh sách các chuyến bay đã xóa và các chuyến bay không tồn tại
+    return FlightDeleteResponse(
+        message="Xóa chuyến bay thành công",
+        deleted_flight_ids=existing_flight_ids,
+        not_found_flight_ids=[flight_id for flight_id in request.flight_ids if flight_id not in existing_flight_ids]
+    )
